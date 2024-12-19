@@ -57,7 +57,7 @@ curl --location 'http://localhost:8080/api/v1/calculate' \
 }
 ```
 
-405(Unprocessable Entity)
+405(Method not allowed)
 ```shell
 curl --location --request GET 'http://localhost:8080/api/v1/calculate' \
 --header 'Content-Type: application/json' \
@@ -87,7 +87,7 @@ curl --location 'http://localhost:8080/api/v1/calculate' \
 }
 ```
 
-500(Unprocessable Entity)
+500(Internal Server Error)
 ```shell
 curl --location 'http://localhost:8080/api/v1/calculate' \
 --header 'Content-Type: application/json' \
