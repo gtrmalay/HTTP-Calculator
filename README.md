@@ -57,6 +57,21 @@ curl --location 'http://localhost:8080/api/v1/calculate' \
 }
 ```
 
+405(Unprocessable Entity)
+```shell
+curl --location --request GET 'http://localhost:8080/api/v1/calculate' \
+--header 'Content-Type: application/json' \
+--data '{
+    
+}'
+```
+Результат 
+```shell
+{
+    "error": "Method not allowed"
+}
+```
+
 422(Unprocessable Entity)
 ```shell
 curl --location 'http://localhost:8080/api/v1/calculate' \
@@ -74,13 +89,15 @@ curl --location 'http://localhost:8080/api/v1/calculate' \
 
 500(Unprocessable Entity)
 ```shell
-curl --location --request GET 'http://localhost:8080/api/v1/calculate' \
+curl --location 'http://localhost:8080/api/v1/calculate' \
 --header 'Content-Type: application/json' \
 --data '{
-    
-}'
+    "expression": "2+2"
+'
 ```
 Результат 
 ```shell
-Что-то пошло не так
+{
+    "error": "Internal server error"
+}
 ```
