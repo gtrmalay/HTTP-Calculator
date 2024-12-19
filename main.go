@@ -141,7 +141,7 @@ func ApplyRPN(rpn []string) (float64, error) {
 			b := stack[len(stack)-1]
 			stack = stack[:len(stack)-1] // Удаляем верхний элемент
 			a := stack[len(stack)-1]
-			stack = stack[:len(stack)-1] // Удаляем следующий элемент
+			stack = stack[:len(stack)-1] // удаляем след. элемент
 
 			result, err := ApplyOperation(a, b, token)
 			if err != nil {
@@ -159,7 +159,7 @@ func ApplyRPN(rpn []string) (float64, error) {
 }
 
 func isValidExpression(expression string) bool {
-	// проверка на корректность выжажения
+	// проверка на корректность выражения
 	for _, r := range expression {
 		if !(r >= '0' && r <= '9' || r == '+' || r == '-' || r == '*' || r == '/' || r == ' ' || r == '(' || r == ')') {
 			return false
@@ -184,19 +184,26 @@ func Calc(expression string) (float64, error) {
 
 func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Что-то пошло не так", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusMethodNotAllowed) //ошибка 405
+		w.Write([]byte(`{"error": "Неразрешенный метод"}`))
 		return
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError) //ошибка 500
+		w.Write([]byte(`{"error": "Internal server error"}`))
 		return
 	}
 	defer r.Body.Close()
 
 	var expressionObj Expression //объект для выражения
 	err = json.Unmarshal(body, &expressionObj)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError) //ошибка 500
+		w.Write([]byte(`{"error": "Internal server error"}`))
+		return
+	}
 
 	expression := expressionObj.ExpressionStr //выражение строкой
 
@@ -221,7 +228,11 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	resultJson, _ := json.Marshal(resultBody)
+	resultJson, err := json.Marshal(resultBody)
+	if err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError) //ошибка 500
+		return
+	}
 
 	w.Write(resultJson)
 }
