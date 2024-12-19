@@ -184,6 +184,7 @@ func Calc(expression string) (float64, error) {
 
 func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusMethodNotAllowed) //ошибка 405
 		w.Write([]byte(`{"error": "Неразрешенный метод"}`))
 		return
@@ -191,6 +192,7 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError) //ошибка 500
 		w.Write([]byte(`{"error": "Internal server error"}`))
 		return
@@ -200,6 +202,7 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	var expressionObj Expression //объект для выражения
 	err = json.Unmarshal(body, &expressionObj)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError) //ошибка 500
 		w.Write([]byte(`{"error": "Internal server error"}`))
 		return
