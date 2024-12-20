@@ -30,8 +30,12 @@ git clone https://github.com/gtrmalay/HTTP-Calculator.git
 ```shell
 go run main.go
 ```
-> **Примечание:** Убедитесь, что ваша версия Go +- 1.23.0
-> Доступ к API по URL: `http://localhost:8080/api/v1/calculate`
+
+Этот API калькулятор работает на порту 8080 по умолчанию.
+
+> **Примечание:** Убедитесь, что ваша версия Go +- 1.23.0 и что порт 8080 свободен на вашей машине. В противном случае API не сможет работать корректно. 
+
+Доступ к API по URL: `http://localhost:8080/api/v1/calculate`
   
 ## API Эндпоинты
 
