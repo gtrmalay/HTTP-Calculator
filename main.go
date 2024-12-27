@@ -32,6 +32,7 @@ func Priority(op string) int {
 	case "*", "/":
 		return 2
 	}
+
 	return 0
 }
 
