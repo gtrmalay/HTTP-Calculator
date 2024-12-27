@@ -15,6 +15,7 @@ type Expression struct {
 // ф-я - число ли?
 func isNumber(s string) bool {
 	_, err := strconv.ParseFloat(s, 64)
+
 	return err == nil
 }
 
@@ -39,9 +40,11 @@ func Tokenisation(expression string) []string {
 	currentNumber := ""
 
 	for i, char := range expression {
+
 		if char == ' ' {
 			continue
 		}
+
 		if isNumber(currentNumber+string(char)) || string(char) == "." {
 			currentNumber += string(char)
 		} else {
@@ -74,24 +77,31 @@ func RPN(tokens []string) ([]string, error) {
 		if isNumber(token) {
 			output = append(output, token)
 		} else if isOperation(token) {
+
 			if token == "-" && (i == 0 || tokens[i-1] == "(" || isOperation(tokens[i-1])) {
 				output = append(output, "0")
 			}
+
 			for len(operators) > 0 && Priority(token) <= Priority(operators[len(operators)-1]) {
 				output = append(output, operators[len(operators)-1])
 				operators = operators[:len(operators)-1]
 			}
+
 			operators = append(operators, token)
+
 		} else if token == "(" {
 			operators = append(operators, token)
 		} else if token == ")" {
+
 			for len(operators) > 0 && operators[len(operators)-1] != "(" {
 				output = append(output, operators[len(operators)-1])
 				operators = operators[:len(operators)-1]
 			}
+
 			if len(operators) == 0 {
 				return nil, errors.New("Что-то не так со скобками!")
 			}
+
 			operators = operators[:len(operators)-1]
 		}
 	}
@@ -106,6 +116,7 @@ func RPN(tokens []string) ([]string, error) {
 
 // вычисление a ? b
 func ApplyOperation(a float64, b float64, op string) (float64, error) {
+
 	switch op {
 	case "+":
 		return a + b, nil
@@ -121,6 +132,7 @@ func ApplyOperation(a float64, b float64, op string) (float64, error) {
 	default:
 		return 0, errors.New("В выражении есть неопознанные операции!")
 	}
+
 }
 
 // вычисление ОПЗ
@@ -129,17 +141,22 @@ func ApplyRPN(rpn []string) (float64, error) {
 
 	for _, token := range rpn {
 		if isNumber(token) {
+
 			num, err := strconv.ParseFloat(token, 64)
 			if err != nil {
 				return 0, err
 			}
+
 			stack = append(stack, num)
+
 		} else if isOperation(token) {
 			if len(stack) < 2 {
 				return 0, errors.New("Не хватает операндов для вычисления!")
 			}
+
 			b := stack[len(stack)-1]
 			stack = stack[:len(stack)-1] // Удаляем верхний элемент
+
 			a := stack[len(stack)-1]
 			stack = stack[:len(stack)-1] // удаляем след. элемент
 
@@ -147,11 +164,13 @@ func ApplyRPN(rpn []string) (float64, error) {
 			if err != nil {
 				return 0, err
 			}
+
 			stack = append(stack, result)
 		}
 	}
 
 	if len(stack) != 1 {
+
 		return 0, errors.New("Выражение некорректно!")
 	}
 
@@ -165,6 +184,7 @@ func isValidExpression(expression string) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -172,29 +192,39 @@ func isValidExpression(expression string) bool {
 func Calc(expression string) (float64, error) {
 	tokens := Tokenisation(expression)
 	rpn, err := RPN(tokens)
+
 	if err != nil {
+
 		return 0, err
+
 	}
 	result, err := ApplyRPN(rpn)
+
 	if err != nil {
+
 		return 0, err
+
 	}
 	return result, nil
 }
 
 func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusMethodNotAllowed) //ошибка 405
-		w.Write([]byte(`{"error": "Неразрешенный метод"}`))
+		w.Write([]byte(`{"error": "Method not allowed"}`))
+
 		return
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError) //ошибка 500
 		w.Write([]byte(`{"error": "Internal server error"}`))
+
 		return
 	}
 	defer r.Body.Close()
@@ -202,30 +232,37 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	var expressionObj Expression //объект для выражения
 	err = json.Unmarshal(body, &expressionObj)
 	if err != nil {
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError) //ошибка 500
 		w.Write([]byte(`{"error": "Internal server error"}`))
+
 		return
 	}
 
 	expression := expressionObj.ExpressionStr //выражение строкой
 
 	if !isValidExpression(expression) {
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnprocessableEntity) //ошибка 422
 		w.Write([]byte(`{"error": "Expression is not valid"}`))
+
 		return
 	}
 
 	resultFloat, calcErr := Calc(expression) //вычисление ответа в float64
 	if calcErr != nil {
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnprocessableEntity) //ошибка 422
 		w.Write([]byte(`{"error": "Expression is not valid"}`))
+
 		return
 	}
 
 	resultString := strconv.FormatFloat(resultFloat, 'f', -1, 64)
+
 	resultBody := map[string]string{
 		"result": resultString,
 	}
@@ -234,6 +271,7 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	resultJson, err := json.Marshal(resultBody)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError) //ошибка 500
+
 		return
 	}
 
@@ -242,5 +280,6 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/api/v1/calculate", ExpressionHandler)
+
 	http.ListenAndServe(":8080", nil)
 }
