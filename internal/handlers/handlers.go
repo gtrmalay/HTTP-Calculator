@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -53,11 +52,13 @@ func getEnvAsInt(name string, defaultValue int) int {
 
 var tokenRegex = regexp.MustCompile(`\d+|\+|\-|\*|\/`)
 
+// Токенизация
 func tokenizeExpression(expression string) ([]string, error) {
 	tokens := tokenRegex.FindAllString(expression, -1)
 	if len(tokens) < 3 {
 		return nil, errors.New("invalid expression format")
 	}
+	fmt.Println("Tokens:", tokens)
 	return tokens, nil
 }
 
@@ -113,12 +114,17 @@ func createTaskRecursive(expressionID string, tokens []string) (string, error) {
 
 	mu.Lock()
 	tasks[taskID] = task
-	taskQueue = append(taskQueue, taskID)
+	if len(dependsOn) == 0 {
+		taskQueue = append(taskQueue, taskID)
+		fmt.Println("Task added to queue immediately:", taskID)
+	}
 	mu.Unlock()
 
+	fmt.Println("Task created:", taskID, "Operation:", task.Operation, "Depends on:", dependsOn)
 	return taskID, nil
 }
 
+// Разбиение выражение на задачи
 func createTasks(expressionID, expr string) error {
 	tokens, err := tokenizeExpression(expr)
 	if err != nil {
@@ -133,29 +139,36 @@ func updateExpressionStatus(expressionID string) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	expr := expressions[expressionID]
-	if expr == nil {
+	expr, exists := expressions[expressionID]
+	if !exists {
 		return
 	}
 
-	allCompleted := true
+	totalTasks := 0
+	completedTasks := 0
+	var finalResult float64
+
 	for _, task := range tasks {
-		if task.ExpressionID == expressionID && task.Status != "completed" {
-			allCompleted = false
-			break
+		if task.ExpressionID == expressionID {
+			totalTasks++
+			if task.Status == "completed" {
+				completedTasks++
+				finalResult = task.Result
+			}
 		}
 	}
 
-	if allCompleted {
+	if totalTasks > 0 && totalTasks == completedTasks {
 		expr.Status = "completed"
+		expr.Result = finalResult
+		fmt.Println("Expression", expressionID, "completed. Result:", finalResult)
 	}
 }
 
-func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
-	for t := range tasks {
-		delete(tasks, t)
-	}
+/////////HANDLERS/////////////////////////////////////////////////////////
 
+// POST /api/v1/calculate
+func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
 		return
@@ -189,6 +202,7 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("Expression created with ID:", exprID)
 	resp := map[string]string{"id": exprID}
 	jsonResp, _ := json.Marshal(resp)
 	w.Header().Set("Content-Type", "application/json")
@@ -196,11 +210,13 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonResp)
 }
 
+// GET /internal/task (отдаёт агенту задачу)
 func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
 
 	if len(taskQueue) == 0 {
+		fmt.Println("No tasks in queue")
 		http.Error(w, `{"error": "No tasks available"}`, http.StatusNotFound)
 		return
 	}
@@ -209,6 +225,7 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	taskQueue = taskQueue[1:]
 	task := tasks[taskID]
 
+	fmt.Println("Task dispatched:", taskID, "Operation:", task.Operation)
 	jsonResp, _ := json.Marshal(task)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(jsonResp)
@@ -241,99 +258,138 @@ func SubmitTaskHandler(w http.ResponseWriter, r *http.Request) {
 	task.Result = taskRes.Result
 	mu.Unlock()
 
+	// Обновляем статус выражения
 	updateExpressionStatus(task.ExpressionID)
 
+	fmt.Println("До блока с зависимыми")
+	// Добавляем зависимые задачи в очередь
+	mu.Lock()
+	for _, t := range tasks {
+		if t.Status == "pending" && contains(t.DependsOn, taskRes.ID) {
+			taskQueue = append(taskQueue, t.ID)
+			fmt.Println("Task added to queue:", t.ID)
+			fmt.Println("Task status:", t.Status)
+			fmt.Println("Task depends on:", t.DependsOn)
+		}
+	}
+	mu.Unlock()
+
+	fmt.Println("Task submitted successfully:", taskRes.ID)
 	w.WriteHeader(http.StatusOK)
+}
+
+func contains(slice []string, item string) bool {
+	fmt.Println("Checking if", item, "is in", slice)
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+func PrintTasksHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	tasksJson, _ := json.Marshal(tasks)
+	w.Write(tasksJson)
+
+	fmt.Println("All tasks printed.")
 }
 
 func PrintExpressionsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	tasksJson, _ := json.Marshal(tasks)
-	w.Write(tasksJson)
-}
 
-func StartAgent() {
-	for {
-		time.Sleep(1 * time.Second)
-
-		mu.Lock()
-		if len(taskQueue) == 0 {
-			mu.Unlock()
-			continue
-		}
-
-		taskID := taskQueue[0]
-		taskQueue = taskQueue[1:]
-		task := tasks[taskID]
-		mu.Unlock()
-
-		allDependenciesCompleted := true
-		for _, depID := range task.DependsOn {
-			depTask, exists := tasks[depID]
-			if !exists || depTask.Status != "completed" {
-				allDependenciesCompleted = false
-				break
-			}
-		}
-
-		if !allDependenciesCompleted {
-			mu.Lock()
-			taskQueue = append(taskQueue, taskID)
-			mu.Unlock()
-			continue
-		}
-
-		replaceArgIfTaskID := func(arg string) (float64, error) {
-			if task, exists := tasks[arg]; exists {
-				if task.Status == "completed" {
-					return task.Result, nil
-				}
-				return 0, fmt.Errorf("task %s is not completed", arg)
-			}
-			return strconv.ParseFloat(arg, 64)
-		}
-
-		arg1, err := replaceArgIfTaskID(task.Arg1)
-		if err != nil {
-			fmt.Println("Error processing Arg1:", err)
-			continue
-		}
-		arg2, err := replaceArgIfTaskID(task.Arg2)
-		if err != nil {
-			fmt.Println("Error processing Arg2:", err)
-			continue
-		}
-
-		var result float64
-		switch task.Operation {
-		case "+":
-			result = arg1 + arg2
-		case "-":
-			result = arg1 - arg2
-		case "*":
-			result = arg1 * arg2
-		case "/":
-			if arg2 == 0 {
-				result = 0
-			} else {
-				result = arg1 / arg2
-			}
-		}
-
-		time.Sleep(time.Duration(task.OperationTime) * time.Millisecond)
-
-		taskRes := models.Task{
-			ID:     task.ID,
-			Result: result,
-			Status: "completed",
-		}
-
-		jsonRes, _ := json.Marshal(taskRes)
-		resp, err := http.Post("http://localhost:8080/internal/task/submit", "application/json", bytes.NewReader(jsonRes))
-		if err != nil {
-			fmt.Println("Error submitting task result:", err)
-			continue
-		}
-		resp.Body.Close()
+	type ExprWithoutExprNTime struct {
+		ID     string  `json:"id"`
+		Status string  `json:"status"`
+		Result float64 `json:"result"`
 	}
+
+	type ExprForOutput struct {
+		Expressions []ExprWithoutExprNTime `json:"expressions"`
+	}
+
+	var expressionsForOutput []ExprWithoutExprNTime
+	for _, expr := range expressions {
+		expressionsForOutput = append(expressionsForOutput, ExprWithoutExprNTime{
+			ID:     expr.ID,
+			Status: expr.Status,
+			Result: expr.Result,
+		})
+	}
+
+	outputExpressions := ExprForOutput{expressionsForOutput}
+
+	w.Header().Set("Content-Type", "application/json")
+	expressionsJson, _ := json.Marshal(outputExpressions)
+	w.Write(expressionsJson)
+	fmt.Println("All tasks printed.")
 }
+
+// GET /internal/task/{id} (возврат задачу по ID)
+func GetTaskByIDHandler(w http.ResponseWriter, r *http.Request) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Извлекаем ID задачи из URL
+	taskID := r.URL.Path[len("/internal/task/"):]
+	if taskID == "" {
+		http.Error(w, `{"error": "Task ID is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Ищем задачу по ID
+	task, exists := tasks[taskID]
+	if !exists {
+		http.Error(w, `{"error": "Task not found"}`, http.StatusNotFound)
+		return
+	}
+
+	// Возвращаем задачу в формате JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(task)
+}
+
+func GetExpressionByIDHandler(w http.ResponseWriter, r *http.Request) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Извлекаем ID задачи из URL
+	expressionID := r.URL.Path[len("/api/v1/expressions/"):]
+	if expressionID == "" {
+		http.Error(w, `{"error": "Task ID is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Ищем задачу по ID
+	expression, exists := expressions[expressionID]
+	if !exists {
+		http.Error(w, `{"error": "Task not found"}`, http.StatusNotFound)
+		return
+	}
+
+	type ExprByID struct {
+		ID     string  `json:"id"`
+		Status string  `json:"status"`
+		Result float64 `json:"result"`
+	}
+
+	type ExprByIDForOutput struct {
+		Expression ExprByID `json:"expression"`
+	}
+
+	var exprByID ExprByID
+	exprByID = ExprByID{
+		ID:     expression.ID,
+		Status: expression.Status,
+		Result: expression.Result,
+	}
+
+	exprByIDForOutput := ExprByIDForOutput{exprByID}
+
+	// Возвращаем задачу в формате JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(exprByIDForOutput)
+}
+
+/////////HANDLERS/////////////////////////////////////////////////////////
