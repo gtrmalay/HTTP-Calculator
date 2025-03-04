@@ -160,38 +160,30 @@ func updateExpressionStatus(expressionID string) {
 			totalTasks++
 			if task.Status == "completed" {
 				completedTasks++
-				finalResult = task.Result
+				// Если это корневая задача, обновляем результат
+				if isRootTask(task.ID, tasks) {
+					finalResult = task.Result
+				}
 			}
 		}
 	}
 
-	// Если все задачи завершены, то обновляем статус выражения
+	// Если все задачи завершены, обновляем статус выражения
 	if totalTasks > 0 && totalTasks == completedTasks {
-		// Проверяем, является ли эта задача последней в выражении
-		for _, task := range tasks {
-			if task.ExpressionID == expressionID && task.Status == "completed" {
-				if isFinalTask(task.ID, tasks) {
-					// Обновляем результат в модели выражения
-					expr.Result = finalResult
-					// Преобразуем результат в строку и сохраняем в поле Expression
-					expr.Expression = fmt.Sprintf("%.2f", finalResult)
-					fmt.Println("Final result for expression", expressionID, ":", expr.Expression)
-				}
-			}
-		}
 		expr.Status = "completed"
+		expr.Result = finalResult
 		fmt.Println("Expression", expressionID, "completed. Result:", finalResult)
 	}
 }
 
-// Функция для проверки, финальная ли это задача
-func isFinalTask(taskID string, tasks map[string]*models.Task) bool {
+// Функция для проверки, является ли задача корневой
+func isRootTask(taskID string, tasks map[string]*models.Task) bool {
 	for _, task := range tasks {
-		if task.ExpressionID == taskID && task.Status != "completed" {
-			return false // Задача ещё не завершена
+		if contains(task.DependsOn, taskID) {
+			return false // Задача является зависимостью для другой задачи
 		}
 	}
-	return true // Это последняя задача в выражении
+	return true // Это корневая задача
 }
 
 /////////HANDLERS/////////////////////////////////////////////////////////
