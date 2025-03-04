@@ -12,7 +12,6 @@ func main() {
 	http.HandleFunc("/api/v1/expressions", handlers.PrintExpressionsHandler)
 	http.HandleFunc("/api/v1/expressions/", handlers.GetExpressionByIDHandler)
 	http.HandleFunc("/internal/task", handlers.GetTaskHandler)
-	http.HandleFunc("/internal/task/submit", handlers.SubmitTaskHandler)
 	http.HandleFunc("/internal/task/", handlers.GetTaskByIDHandler)
 	http.HandleFunc("/internal/tasks", handlers.PrintTasksHandler) //all tasks for debug
 

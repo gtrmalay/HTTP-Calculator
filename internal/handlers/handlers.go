@@ -61,7 +61,6 @@ func tokenizeExpression(expression string) ([]string, error) {
 	fmt.Println("Tokens:", tokens)
 	return tokens, nil
 }
-
 func createTaskRecursive(expressionID string, tokens []string) (string, error) {
 	if len(tokens) == 1 {
 		return tokens[0], nil
@@ -116,15 +115,22 @@ func createTaskRecursive(expressionID string, tokens []string) (string, error) {
 	tasks[taskID] = task
 	if len(dependsOn) == 0 {
 		taskQueue = append(taskQueue, taskID)
-		fmt.Println("Task added to queue immediately:", taskID)
+	} else {
+		// Проверяем, есть ли зависимости, и добавляем задачу в очередь только после их выполнения
+		for _, dep := range dependsOn {
+			if tasks[dep] == nil {
+				fmt.Println("Warning: Task", taskID, "has missing dependency:", dep)
+			}
+		}
 	}
+
 	mu.Unlock()
 
 	fmt.Println("Task created:", taskID, "Operation:", task.Operation, "Depends on:", dependsOn)
 	return taskID, nil
 }
 
-// Разбиение выражение на задачи
+// выражение на задачи
 func createTasks(expressionID, expr string) error {
 	tokens, err := tokenizeExpression(expr)
 	if err != nil {
@@ -148,6 +154,7 @@ func updateExpressionStatus(expressionID string) {
 	completedTasks := 0
 	var finalResult float64
 
+	// Проходим по задачам
 	for _, task := range tasks {
 		if task.ExpressionID == expressionID {
 			totalTasks++
@@ -158,16 +165,38 @@ func updateExpressionStatus(expressionID string) {
 		}
 	}
 
+	// Если все задачи завершены, то обновляем статус выражения
 	if totalTasks > 0 && totalTasks == completedTasks {
+		// Проверяем, является ли эта задача последней в выражении
+		for _, task := range tasks {
+			if task.ExpressionID == expressionID && task.Status == "completed" {
+				if isFinalTask(task.ID, tasks) {
+					// Обновляем результат в модели выражения
+					expr.Result = finalResult
+					// Преобразуем результат в строку и сохраняем в поле Expression
+					expr.Expression = fmt.Sprintf("%.2f", finalResult)
+					fmt.Println("Final result for expression", expressionID, ":", expr.Expression)
+				}
+			}
+		}
 		expr.Status = "completed"
-		expr.Result = finalResult
 		fmt.Println("Expression", expressionID, "completed. Result:", finalResult)
 	}
 }
 
+// Функция для проверки, финальная ли это задача
+func isFinalTask(taskID string, tasks map[string]*models.Task) bool {
+	for _, task := range tasks {
+		if task.ExpressionID == taskID && task.Status != "completed" {
+			return false // Задача ещё не завершена
+		}
+	}
+	return true // Это последняя задача в выражении
+}
+
 /////////HANDLERS/////////////////////////////////////////////////////////
 
-// POST /api/v1/calculate
+// Обрабатывает POST /api/v1/calculate
 func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
@@ -210,72 +239,81 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonResp)
 }
 
-// GET /internal/task (отдаёт агенту задачу)
+// Обрабатывает GET /internal/task (отдаёт агенту задачу)
 func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	if len(taskQueue) == 0 {
-		fmt.Println("No tasks in queue")
-		http.Error(w, `{"error": "No tasks available"}`, http.StatusNotFound)
-		return
-	}
-
-	taskID := taskQueue[0]
-	taskQueue = taskQueue[1:]
-	task := tasks[taskID]
-
-	fmt.Println("Task dispatched:", taskID, "Operation:", task.Operation)
-	jsonResp, _ := json.Marshal(task)
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(jsonResp)
-}
-
-func SubmitTaskHandler(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, `{"error": "Invalid request"}`, http.StatusBadRequest)
-		return
-	}
-	defer r.Body.Close()
-
-	var taskRes models.Task
-	err = json.Unmarshal(body, &taskRes)
-	if err != nil {
-		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
-		return
-	}
-
-	mu.Lock()
-	task, exists := tasks[taskRes.ID]
-	if !exists {
-		mu.Unlock()
-		http.Error(w, `{"error": "Task not found"}`, http.StatusNotFound)
-		return
-	}
-
-	task.Status = "completed"
-	task.Result = taskRes.Result
-	mu.Unlock()
-
-	// Обновляем статус выражения
-	updateExpressionStatus(task.ExpressionID)
-
-	fmt.Println("До блока с зависимыми")
-	// Добавляем зависимые задачи в очередь
-	mu.Lock()
-	for _, t := range tasks {
-		if t.Status == "pending" && contains(t.DependsOn, taskRes.ID) {
-			taskQueue = append(taskQueue, t.ID)
-			fmt.Println("Task added to queue:", t.ID)
-			fmt.Println("Task status:", t.Status)
-			fmt.Println("Task depends on:", t.DependsOn)
+	switch r.Method {
+	case http.MethodPost:
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, `{"error": "Invalid request"}`, http.StatusBadRequest)
+			return
 		}
-	}
-	mu.Unlock()
+		defer r.Body.Close()
 
-	fmt.Println("Task submitted successfully:", taskRes.ID)
-	w.WriteHeader(http.StatusOK)
+		var taskRes models.Task
+		err = json.Unmarshal(body, &taskRes)
+		if err != nil {
+			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+
+		mu.Lock()
+		task, exists := tasks[taskRes.ID]
+		if !exists {
+			mu.Unlock()
+			http.Error(w, `{"error": "Task not found"}`, http.StatusNotFound)
+			return
+		}
+
+		task.Status = "completed"
+		task.Result = taskRes.Result
+		mu.Unlock()
+
+		// Обновляем статус выражения
+		updateExpressionStatus(task.ExpressionID)
+
+		fmt.Println("До блока с зависимыми")
+		// Добавляем зависимые задачи в очередь
+		mu.Lock()
+		for _, t := range tasks {
+			if t.Status == "pending" && contains(t.DependsOn, taskRes.ID) {
+				allDepsCompleted := true
+				for _, depID := range t.DependsOn {
+					if tasks[depID].Status != "completed" {
+						allDepsCompleted = false
+						break
+					}
+				}
+				if allDepsCompleted {
+					taskQueue = append(taskQueue, t.ID)
+					fmt.Println("Task added to queue:", t.ID)
+				}
+			}
+		}
+
+		mu.Unlock()
+
+		fmt.Println("Task submitted successfully:", taskRes.ID)
+		w.WriteHeader(http.StatusOK)
+	case http.MethodGet:
+		mu.Lock()
+		defer mu.Unlock()
+
+		if len(taskQueue) == 0 {
+			fmt.Println("No tasks in queue")
+			http.Error(w, `{"error": "No tasks available"}`, http.StatusNotFound)
+			return
+		}
+
+		taskID := taskQueue[0]
+		taskQueue = taskQueue[1:]
+		task := tasks[taskID]
+
+		fmt.Println("Task dispatched:", taskID, "Operation:", task.Operation)
+		jsonResp, _ := json.Marshal(task)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(jsonResp)
+	}
 }
 
 func contains(slice []string, item string) bool {
@@ -326,7 +364,7 @@ func PrintExpressionsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("All tasks printed.")
 }
 
-// GET /internal/task/{id} (возврат задачу по ID)
+// Обрабатывает GET /internal/task/{id} (возврат задачу по ID)
 func GetTaskByIDHandler(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
