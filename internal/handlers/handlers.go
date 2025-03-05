@@ -131,12 +131,16 @@ func createTasksFromRPN(expressionID string, tokens []string) error {
 			stack = append(stack, token)
 		} else if isOperation(token) {
 			if len(stack) < 2 {
-				return errors.New("not enough operands for operation")
+				return errors.New("Not enough operands for operation")
 			}
 
 			arg2 := stack[len(stack)-1]
 			arg1 := stack[len(stack)-2]
 			stack = stack[:len(stack)-2]
+
+			if token == "/" && arg2 == "0" {
+				return errors.New("Division by zero")
+			}
 
 			taskID := uuid.New().String()
 			dependsOn := make([]string, 0)
@@ -168,12 +172,12 @@ func createTasksFromRPN(expressionID string, tokens []string) error {
 
 			stack = append(stack, taskID)
 		} else {
-			return errors.New("invalid token in expression")
+			return errors.New("Invalid token in expression")
 		}
 	}
 
 	if len(stack) != 1 {
-		return errors.New("invalid expression format")
+		return errors.New("Invalid expression format")
 
 	}
 
@@ -230,12 +234,14 @@ func updateExpressionStatus(expressionID string) {
 // Обрабатывает POST /api/v1/calculate
 func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
 		return
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
 		return
 	}
@@ -244,6 +250,7 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	var exprReq models.Expression
 	err = json.Unmarshal(body, &exprReq)
 	if err != nil || exprReq.Expression == "" {
+		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 		return
 	}
@@ -258,13 +265,17 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 
 	tokens, err := infixToRPN(exprReq.Expression)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, `{"error": "Invalid expression format"}`, http.StatusUnprocessableEntity)
 		return
 	}
 
 	err = createTasksFromRPN(exprID, tokens)
 	if err != nil {
-		http.Error(w, `{"error": "Failed to create tasks"}`, http.StatusUnprocessableEntity)
+		w.Header().Set("Content-Type", "application/json")
+
+		errorMsg := fmt.Sprintf(`{"error": %s"}`, err.Error())
+		http.Error(w, errorMsg, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -272,6 +283,7 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]string{"id": exprID}
 	jsonResp, err := json.Marshal(resp)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
 		return
 	}
@@ -286,6 +298,7 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
 			http.Error(w, `{"error": "Invalid request"}`, http.StatusBadRequest)
 			return
 		}
@@ -294,6 +307,7 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		var taskRes models.Task
 		err = json.Unmarshal(body, &taskRes)
 		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
 			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 			return
 		}
@@ -302,7 +316,18 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		task, exists := tasks[taskRes.ID]
 		if !exists {
 			mu.Unlock()
+			w.Header().Set("Content-Type", "application/json")
 			http.Error(w, `{"error": "Task not found"}`, http.StatusNotFound)
+			return
+		}
+
+		if task.Operation == "/" && taskRes.Arg2 == "0" {
+			task.Status = "error"
+			mu.Unlock()
+
+			updateExpressionStatus(task.ExpressionID)
+			w.Header().Set("Content-Type", "application/json")
+			http.Error(w, `{"error": "Division by zero"}`, http.StatusUnprocessableEntity)
 			return
 		}
 
@@ -342,6 +367,7 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 		if len(taskQueue) == 0 {
 			fmt.Println("No tasks in queue")
+			w.Header().Set("Content-Type", "application/json")
 			http.Error(w, `{"error": "No tasks available"}`, http.StatusNotFound)
 			return
 		}
@@ -353,6 +379,7 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Task dispatched:", taskID, "Operation:", task.Operation)
 		jsonResp, err := json.Marshal(task)
 		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
 			http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
 			return
 		}
@@ -375,6 +402,7 @@ func PrintTasksHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	tasksJson, err := json.Marshal(tasks)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
 		return
 	}
@@ -425,6 +453,7 @@ func GetTaskByIDHandler(w http.ResponseWriter, r *http.Request) {
 	// Извлекаем ID задачи из URL
 	taskID := r.URL.Path[len("/internal/task/"):]
 	if taskID == "" {
+		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, `{"error": "Task ID is required"}`, http.StatusBadRequest)
 		return
 	}
@@ -432,6 +461,7 @@ func GetTaskByIDHandler(w http.ResponseWriter, r *http.Request) {
 	// Ищем задачу по ID
 	task, exists := tasks[taskID]
 	if !exists {
+		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, `{"error": "Task not found"}`, http.StatusNotFound)
 		return
 	}
@@ -452,6 +482,7 @@ func GetExpressionByIDHandler(w http.ResponseWriter, r *http.Request) {
 	// Извлекаем ID задачи из URL
 	expressionID := r.URL.Path[len("/api/v1/expressions/"):]
 	if expressionID == "" {
+		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, `{"error": "Task ID is required"}`, http.StatusBadRequest)
 		return
 	}
@@ -459,6 +490,7 @@ func GetExpressionByIDHandler(w http.ResponseWriter, r *http.Request) {
 	// Ищем задачу по ID
 	expression, exists := expressions[expressionID]
 	if !exists {
+		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, `{"error": "Task not found"}`, http.StatusNotFound)
 		return
 	}
@@ -486,6 +518,7 @@ func GetExpressionByIDHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	err := json.NewEncoder(w).Encode(exprByIDForOutput)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
 		return
 	}
