@@ -7,10 +7,10 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"regexp"
 	"strconv"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/gtrmalay/LMS.Sprint1.HTTP-Calculator/internal/models"
@@ -50,95 +50,149 @@ func getEnvAsInt(name string, defaultValue int) int {
 	return intVal
 }
 
-var tokenRegex = regexp.MustCompile(`\d+|\+|\-|\*|\/`)
+// Преобразует инфиксное выражение в ОПЗ (обратную польскую запись)
+func infixToRPN(expression string) ([]string, error) {
+	var output []string
+	var stack []string
 
-// Токенизация
-func tokenizeExpression(expression string) ([]string, error) {
-	tokens := tokenRegex.FindAllString(expression, -1)
+	// Приоритет операторов
+	precedence := map[string]int{
+		"+": 1,
+		"-": 1,
+		"*": 2,
+		"/": 2,
+	}
+
+	for i := 0; i < len(expression); i++ {
+		char := string(expression[i])
+
+		switch {
+		case char == " ":
+			continue
+		case isNum(char):
+			// Если символ — число, считываем всё число
+			num := ""
+			for i < len(expression) && (unicode.IsDigit(rune(expression[i])) || expression[i] == '.') {
+				num += string(expression[i])
+				i++
+			}
+			i-- // Возвращаемся на один символ назад
+			output = append(output, num)
+		case char == "(":
+			stack = append(stack, char)
+		case char == ")":
+			// Выталкиваем все операторы из стека до открывающей скобки
+			for len(stack) > 0 && stack[len(stack)-1] != "(" {
+				output = append(output, stack[len(stack)-1])
+				stack = stack[:len(stack)-1]
+			}
+			if len(stack) == 0 {
+				return nil, errors.New("mismatched parentheses")
+			}
+			stack = stack[:len(stack)-1] // Убираем "(" из стека
+		case isOperation(char):
+			// Выталкиваем операторы с более высоким приоритетом
+			for len(stack) > 0 && precedence[stack[len(stack)-1]] >= precedence[char] {
+				output = append(output, stack[len(stack)-1])
+				stack = stack[:len(stack)-1]
+			}
+			stack = append(stack, char)
+		default:
+			return nil, errors.New("invalid character in expression")
+		}
+	}
+
+	// Выталкиваем оставшиеся операторы из стека
+	for len(stack) > 0 {
+		if stack[len(stack)-1] == "(" {
+			return nil, errors.New("mismatched parentheses")
+		}
+		output = append(output, stack[len(stack)-1])
+		stack = stack[:len(stack)-1]
+	}
+
+	return output, nil
+}
+
+/* func tokenizeExpression(expression string) ([]string, error) {
+	tokens := strings.Fields(expression)
 	if len(tokens) < 3 {
 		return nil, errors.New("invalid expression format")
 	}
 	fmt.Println("Tokens:", tokens)
 	return tokens, nil
-}
-func createTaskRecursive(expressionID string, tokens []string) (string, error) {
-	if len(tokens) == 1 {
-		return tokens[0], nil
-	}
+} */
 
-	opIndex := -1
-	for i, token := range tokens {
-		if token == "+" || token == "-" {
-			opIndex = i
-			break
-		} else if token == "*" || token == "/" {
-			if opIndex == -1 {
-				opIndex = i
+func createTasksFromRPN(expressionID string, tokens []string) error {
+	var stack []string // Стек для хранения операндов и промежуточных результатов
+
+	for _, token := range tokens {
+		if isNum(token) {
+			stack = append(stack, token)
+		} else if isOperation(token) {
+			if len(stack) < 2 {
+				return errors.New("not enough operands for operation")
 			}
+
+			arg2 := stack[len(stack)-1]
+			arg1 := stack[len(stack)-2]
+			stack = stack[:len(stack)-2]
+
+			taskID := uuid.New().String()
+			dependsOn := make([]string, 0)
+
+			if _, err := uuid.Parse(arg1); err == nil {
+				dependsOn = append(dependsOn, arg1)
+			}
+			if _, err := uuid.Parse(arg2); err == nil {
+				dependsOn = append(dependsOn, arg2)
+			}
+
+			task := &models.Task{
+				ID:            taskID,
+				ExpressionID:  expressionID,
+				Arg1:          arg1,
+				Arg2:          arg2,
+				Operation:     token,
+				OperationTime: getOperationTime(token),
+				Status:        "pending",
+				DependsOn:     dependsOn,
+			}
+
+			mu.Lock()
+			tasks[taskID] = task
+			if len(dependsOn) == 0 {
+				taskQueue = append(taskQueue, taskID)
+			}
+			mu.Unlock()
+
+			stack = append(stack, taskID)
+		} else {
+			return errors.New("invalid token in expression")
 		}
 	}
 
-	if opIndex == -1 {
-		return "", errors.New("invalid expression format")
+	if len(stack) != 1 {
+		return errors.New("invalid expression format")
+
 	}
 
-	taskID := uuid.New().String()
-	arg1, err := createTaskRecursive(expressionID, tokens[:opIndex])
-	if err != nil {
-		return "", err
-	}
-	arg2, err := createTaskRecursive(expressionID, tokens[opIndex+1:])
-	if err != nil {
-		return "", err
-	}
-
-	dependsOn := make([]string, 0)
-	if _, err := uuid.Parse(arg1); err == nil {
-		dependsOn = append(dependsOn, arg1)
-	}
-	if _, err := uuid.Parse(arg2); err == nil {
-		dependsOn = append(dependsOn, arg2)
-	}
-
-	task := &models.Task{
-		ID:            taskID,
-		ExpressionID:  expressionID,
-		Arg1:          arg1,
-		Arg2:          arg2,
-		Operation:     tokens[opIndex],
-		OperationTime: getOperationTime(tokens[opIndex]),
-		Status:        "pending",
-		DependsOn:     dependsOn,
-	}
-
-	mu.Lock()
-	tasks[taskID] = task
-	if len(dependsOn) == 0 {
-		taskQueue = append(taskQueue, taskID)
-	} else {
-		// Проверяем, есть ли зависимости, и добавляем задачу в очередь только после их выполнения
-		for _, dep := range dependsOn {
-			if tasks[dep] == nil {
-				fmt.Println("Warning: Task", taskID, "has missing dependency:", dep)
-			}
-		}
-	}
-
-	mu.Unlock()
-
-	fmt.Println("Task created:", taskID, "Operation:", task.Operation, "Depends on:", dependsOn)
-	return taskID, nil
+	return nil
 }
 
-// выражение на задачи
-func createTasks(expressionID, expr string) error {
-	tokens, err := tokenizeExpression(expr)
-	if err != nil {
-		return err
-	}
+func isNum(token string) bool {
+	_, err := strconv.ParseFloat(token, 64)
+	return err == nil
+}
 
-	_, err = createTaskRecursive(expressionID, tokens)
-	return err
+// Проверка, является ли токен операцией
+func isOperation(token string) bool {
+	switch token {
+	case "+", "-", "*", "/":
+		return true
+	default:
+		return false
+	}
 }
 
 func updateExpressionStatus(expressionID string) {
@@ -154,21 +208,16 @@ func updateExpressionStatus(expressionID string) {
 	completedTasks := 0
 	var finalResult float64
 
-	// Проходим по задачам
 	for _, task := range tasks {
 		if task.ExpressionID == expressionID {
 			totalTasks++
 			if task.Status == "completed" {
 				completedTasks++
-				// Если это корневая задача, обновляем результат
-				if isRootTask(task.ID, tasks) {
-					finalResult = task.Result
-				}
+				finalResult = task.Result
 			}
 		}
 	}
 
-	// Если все задачи завершены, обновляем статус выражения
 	if totalTasks > 0 && totalTasks == completedTasks {
 		expr.Status = "completed"
 		expr.Result = finalResult
@@ -176,17 +225,7 @@ func updateExpressionStatus(expressionID string) {
 	}
 }
 
-// Функция для проверки, является ли задача корневой
-func isRootTask(taskID string, tasks map[string]*models.Task) bool {
-	for _, task := range tasks {
-		if contains(task.DependsOn, taskID) {
-			return false // Задача является зависимостью для другой задачи
-		}
-	}
-	return true // Это корневая задача
-}
-
-/////////HANDLERS/////////////////////////////////////////////////////////
+///////// HANDLERS ///////////////////////////////////////////////////////
 
 // Обрабатывает POST /api/v1/calculate
 func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
@@ -217,7 +256,13 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:  time.Now(),
 	}
 
-	err = createTasks(exprID, exprReq.Expression)
+	tokens, err := infixToRPN(exprReq.Expression)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid expression format"}`, http.StatusUnprocessableEntity)
+		return
+	}
+
+	err = createTasksFromRPN(exprID, tokens)
 	if err != nil {
 		http.Error(w, `{"error": "Failed to create tasks"}`, http.StatusUnprocessableEntity)
 		return
@@ -225,7 +270,11 @@ func ExpressionHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println("Expression created with ID:", exprID)
 	resp := map[string]string{"id": exprID}
-	jsonResp, _ := json.Marshal(resp)
+	jsonResp, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	w.Write(jsonResp)
@@ -302,7 +351,11 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		task := tasks[taskID]
 
 		fmt.Println("Task dispatched:", taskID, "Operation:", task.Operation)
-		jsonResp, _ := json.Marshal(task)
+		jsonResp, err := json.Marshal(task)
+		if err != nil {
+			http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(jsonResp)
 	}
@@ -320,7 +373,11 @@ func contains(slice []string, item string) bool {
 
 func PrintTasksHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	tasksJson, _ := json.Marshal(tasks)
+	tasksJson, err := json.Marshal(tasks)
+	if err != nil {
+		http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
+		return
+	}
 	w.Write(tasksJson)
 
 	fmt.Println("All tasks printed.")
@@ -351,7 +408,11 @@ func PrintExpressionsHandler(w http.ResponseWriter, r *http.Request) {
 	outputExpressions := ExprForOutput{expressionsForOutput}
 
 	w.Header().Set("Content-Type", "application/json")
-	expressionsJson, _ := json.Marshal(outputExpressions)
+	expressionsJson, err := json.Marshal(outputExpressions)
+	if err != nil {
+		http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
+		return
+	}
 	w.Write(expressionsJson)
 	fmt.Println("All tasks printed.")
 }
@@ -377,7 +438,11 @@ func GetTaskByIDHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Возвращаем задачу в формате JSON
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(task)
+	err := json.NewEncoder(w).Encode(task)
+	if err != nil {
+		http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
+		return
+	}
 }
 
 func GetExpressionByIDHandler(w http.ResponseWriter, r *http.Request) {
@@ -419,7 +484,11 @@ func GetExpressionByIDHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Возвращаем задачу в формате JSON
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(exprByIDForOutput)
+	err := json.NewEncoder(w).Encode(exprByIDForOutput)
+	if err != nil {
+		http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
+		return
+	}
 }
 
 /////////HANDLERS/////////////////////////////////////////////////////////
