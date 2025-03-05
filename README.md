@@ -59,7 +59,6 @@ TIME_ADDITION_MS=1000 TIME_SUBTRACTION_MS=1000 TIME_MULTIPLICATION_MS=2000 TIME_
 
 Пример:
 ```sh
-Пример:
 COMPUTING_POWER=3 go run ./cmd/agent/main.go
 ```
 
