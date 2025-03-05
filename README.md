@@ -36,7 +36,7 @@ git clone https://github.com/gtrmalay/HTTP-Calculator.git
 ```
 2. Перейдите в директорию проекта
 ```sh
-cd HTTP-Calculator/
+cd .\HTTP-Calculator\
 ```
 3. Установите зависимости
 ```sh
