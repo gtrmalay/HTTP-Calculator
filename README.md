@@ -65,7 +65,7 @@ go run ./cmd/agent/main.go
 
 Пример:
 ```sh
-TIME_ADDITION_MS=1000 TIME_SUBTRACTION_MS=1000 TIME_MULTIPLICATION_MS=2000 TIME_DIVISION_MS=2000 go run ./cmd/calculator/main.go
+$env:TIME_ADDITION_MS="1000"; $env:TIME_SUBTRACTION_MS="1000"; $env:TIME_MULTIPLICATION_MS="2000"; $env:TIME_DIVISION_MS="2000"; go run ./cmd/calculator/main.go 
 ```
 Чтобы указать количество горутин для вычисления задач тоже указывается значение переменной среды
 
