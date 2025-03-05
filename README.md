@@ -33,6 +33,9 @@ README.md
 1. Клонируйте репозиторий
 ```sh
 git clone https://github.com/gtrmalay/HTTP-Calculator.git
+```
+Переход в директорию проекта
+```sh
 cd HTTP-Calculator/
 ```
 Установите зависимости
