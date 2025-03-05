@@ -34,11 +34,11 @@ README.md
 ```sh
 git clone https://github.com/gtrmalay/HTTP-Calculator.git
 ```
-Переход в директорию проекта
+2. Перейдите в директорию проекта
 ```sh
 cd HTTP-Calculator/
 ```
-Установите зависимости
+3. Установите зависимости
 ```sh
 go mod tidy
 ```
