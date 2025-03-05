@@ -234,7 +234,7 @@ curl --location 'localhost:8080/api/v1/calculate' \
 **Ответ**:
 ```json
 {
-    "id": 1741187030581847400
+    "id": 7dc0b599-d044-4336-81a7-85c7c4117b9d
 }
 ```
 
@@ -253,7 +253,7 @@ curl --location 'localhost:8080/api/v1/calculate' \
 **Ответ**:
 ```json
 {
-    "error": "division by zero"
+    "error": "Division by zero"
 }
 ```
 
@@ -272,7 +272,7 @@ curl --location 'localhost:8080/api/v1/calculate' \
 **Ответ**:
 ```json
 {
-    "error": "internal server error"
+    "error": "Internal server error"
 }
 ```
 
@@ -338,7 +338,7 @@ curl --location 'localhost:8080/api/v1/expressions/:1741187753311405100'
 {
     "expression": {
         "id": 1741187753311405100,
-        "status": "in proccess",
+        "status": "in pending",
         "result": ""
     }
 }
@@ -355,15 +355,15 @@ curl --location 'localhost:8080/api/v1/expressions/:1741187753311643100'
 **Ответ**:
 ```json
 {
-    "error":"no expression with id: 1741187753311643100"
+    "error":"Task not found"
 }
 ```
 
 **Код ответа**:
 - 404 - нет такого выражения
   
-## Контакты
-Если у вас возникли вопросы, предложения и т.д., вот мой тг:
+##Контакты
+Если возникли вопросы по моему проекту, добро пожаловать в мой телеграм:
 ```
-https://t.me/sigmatemik52
+https://t.me/akkoyash
 ```
