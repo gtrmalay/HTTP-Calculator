@@ -60,12 +60,18 @@ go run ./cmd/calculator/main.go
 ```sh
 go run ./cmd/agent/main.go
 ```
+**Запуск визульной части:**
+После запуска агента и оркестратора откройте в браузере URL сервиса: 
+```
+http://localhost:8080/
+```
+
 
 В программе используются переменные среды, чтобы указать время выполнения операций, необходимо перед командой запуска программы в консоли указать значение переменной среды
 
 Пример:
 ```sh
-TIME_ADDITION_MS=1000 TIME_SUBTRACTION_MS=1000 TIME_MULTIPLICATION_MS=2000 TIME_DIVISION_MS=2000 go run ./cmd/calculator/main.go
+$env:TIME_ADDITION_MS="1000"; $env:TIME_SUBTRACTION_MS="1000"; $env:TIME_MULTIPLICATION_MS="2000"; $env:TIME_DIVISION_MS="2000"; go run ./cmd/calculator/main.go 
 ```
 Чтобы указать количество горутин для вычисления задач тоже указывается значение переменной среды
 
