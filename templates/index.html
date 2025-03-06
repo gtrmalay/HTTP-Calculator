@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP-Calculator</title>
+    <link rel="stylesheet" href="../styles/style.css">
+    <script>
+        async function submitForm(event) {
+            event.preventDefault(); 
+
+            const expression = document.getElementById("expression").value;
+
+            const response = await fetch("/api/v1/calculate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ expression: expression }),
+            });
+
+            if (response.ok) {
+                alert("Выражение добавлено в очередь"); 
+            } else {
+                const error = await response.json();
+                alert(error.error); 
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>HTTP-Calculator</h1>
+    <form onsubmit="submitForm(event)">
+        <label for="expression">Введите выражение:</label>
+        <input type="text" id="expression" name="expression" required>
+        <button type="submit">Решить</button>
+    </form>
+
+    <a href="/expressions">Показать все выражения</a>
+</body>
+</html>

@@ -6,10 +6,16 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"text/template"
 
 	"github.com/google/uuid"
 	"github.com/gtrmalay/LMS.Sprint1.HTTP-Calculator/internal/models"
 )
+
+func init() {
+	// Загружаем шаблоны
+	templates = template.Must(template.ParseGlob("../../templates/*.html"))
+}
 
 func TestExpressionHandler(t *testing.T) {
 	// Тест на успешное создание выражения

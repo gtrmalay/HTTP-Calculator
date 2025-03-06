@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"text/template"
 	"time"
 	"unicode"
 
@@ -21,7 +22,52 @@ var (
 	tasks       = make(map[string]*models.Task)
 	taskQueue   = make([]string, 0)
 	mu          sync.Mutex
+	templates   = template.Must(template.ParseGlob("templates/*.html"))
 )
+
+///////// TEMPLATES ///////////////////////////////////////////////////////
+
+func RenderTemplate(w http.ResponseWriter, tmpl string, data interface{}) {
+	err := templates.ExecuteTemplate(w, tmpl, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func IndexHandler(w http.ResponseWriter, r *http.Request) {
+	RenderTemplate(w, "index.html", nil)
+}
+
+func ExpressionsHandler(w http.ResponseWriter, r *http.Request) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	var expressionsList []models.Expression
+	for _, expr := range expressions {
+		expressionsList = append(expressionsList, *expr)
+	}
+
+	RenderTemplate(w, "expressions.html", expressionsList)
+}
+
+func ResultHandler(w http.ResponseWriter, r *http.Request) {
+	exprID := r.URL.Query().Get("id")
+	if exprID == "" {
+		http.Error(w, `{"error": "Expression ID is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	mu.Lock()
+	expr, exists := expressions[exprID]
+	mu.Unlock()
+
+	if !exists {
+		http.Error(w, `{"error": "Expression not found"}`, http.StatusNotFound)
+		return
+	}
+
+	RenderTemplate(w, "result.html", expr)
+}
 
 func getOperationTime(op string) int {
 	switch op {
@@ -366,7 +412,7 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 		defer mu.Unlock()
 
 		if len(taskQueue) == 0 {
-			fmt.Println("No tasks in queue")
+			//fmt.Println("No tasks in queue")
 			w.Header().Set("Content-Type", "application/json")
 			http.Error(w, `{"error": "No tasks available"}`, http.StatusNotFound)
 			return
