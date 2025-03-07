@@ -29,6 +29,11 @@ internal/
   │   ├── models.go
   ├── storage/
   │   ├── storage.go
+styles/
+  ├── style.css
+templates/
+  ├── expressions.html
+  ├── index.html
 go.mod
 go.sum
 LICENSE.txt
