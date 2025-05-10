@@ -34,6 +34,11 @@ styles/
 templates/
   ├── expressions.html
   ├── index.html
+tests/
+  ├── integration/
+  ├── unit/
+  │   ├── auth_test.go
+  │   ├── storage_test.go
 go.mod
 go.sum
 LICENSE.txt
@@ -70,6 +75,13 @@ go run ./cmd/agent/main.go
 ```
 http://localhost:8080/
 ```
+
+**Запуск тестов:**
+После запуска агента и оркестратора откройте в браузере URL сервиса: 
+```
+go test .\tests\unit\ 
+```
+
 
 
 В программе используются переменные среды, чтобы указать время выполнения операций, необходимо перед командой запуска программы в консоли указать значение переменной среды
