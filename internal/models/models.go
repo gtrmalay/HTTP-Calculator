@@ -2,22 +2,48 @@ package models
 
 import "time"
 
+type User struct {
+	ID           int       `json:"id"`
+	Login        string    `json:"login"`
+	PasswordHash string    `json:"-"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
 type Expression struct {
-	ID         string    `json:"id"`
+	ID         int       `json:"id"`
+	UserID     int       `json:"user_id"`
 	Expression string    `json:"expression"`
-	Status     string    `json:"status"`
 	Result     float64   `json:"result"`
+	Status     string    `json:"status"`
 	CreatedAt  time.Time `json:"created_at"`
 }
 
 type Task struct {
 	ID            string   `json:"id"`
-	ExpressionID  string   `json:"expression_id"`
+	ExpressionID  int      `json:"expression_id"`
 	Arg1          string   `json:"arg1"`
 	Arg2          string   `json:"arg2"`
 	Operation     string   `json:"operation"`
 	OperationTime int      `json:"operation_time"`
 	Status        string   `json:"status"`
-	Result        float64  `json:"result"`
+	Result        *float64 `json:"result"` // Изменяем на указатель для поддержки NULL
 	DependsOn     []string `json:"depends_on"`
+}
+
+type RegisterRequest struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+}
+
+type LoginRequest struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+}
+
+type LoginResponse struct {
+	Token string `json:"token"`
+}
+
+type ExpressionRequest struct {
+	Expression string `json:"expression"`
 }
