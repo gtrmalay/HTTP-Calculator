@@ -61,7 +61,7 @@ cd .\HTTP-Calculator\
 go mod tidy
 ```
 ### Запуск
-1. **Настройте БД**
+1. Настройте БД
 
 В пакете cmd/calculator/main.go необходимо настроить строку подключения (написать название бд и пароль):
 ```
@@ -70,28 +70,14 @@ connStr = "user=postgres dbname=calculator_db password=your_db_pass sslmode=disa
 
 connStr = "user=postgres dbname=calculator_db password=Ebds777staX sslmode=disable"
 
-2. **Запустите оркестратор:**
+2. Запустите оркестратор:
 ```sh
 go run ./cmd/calculator/main.go
 ```
-3. **Запустите агента:**
+3. Запустите агента:
 ```sh
 go run ./cmd/agent/main.go
 ```
-
-**Запуск визульной части:**
-После запуска агента и оркестратора откройте в браузере URL сервиса: 
-```
-http://localhost:8080/
-```
-
-**Запуск тестов:**
-```
-go test .\tests\unit\
-go test .\tests\integration\
-```
-
-
 
 В программе используются переменные среды, чтобы указать время выполнения операций, необходимо перед командой запуска программы в консоли указать значение переменной среды
 
@@ -107,6 +93,22 @@ COMPUTING_POWER=3 go run ./cmd/agent/main.go
 ```
 
 **Примечение:** если не указать определенные значения, то программа установит default значения по умолчанию
+
+## Запуск тестов:
+
+В пакете tests/integration/integration_test.go необходимо настроить строку подключения (написать название бд и пароль):
+
+> **Примечание:** Лучше использовать отдельную базу данных для тестов, так как она будет очищать все данные перед тестами для корректной работы.
+
+```
+connStr = "user=postgres dbname=test_calculator_db password=your_db_pass sslmode=disable"
+```
+
+Команды для запуска тестов:
+```
+go test .\tests\unit\
+go test .\tests\integration\
+```
 
 ## Документация
 
