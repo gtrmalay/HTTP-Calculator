@@ -1,12 +1,21 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+)
 
 type User struct {
 	ID           int       `json:"id"`
 	Login        string    `json:"login"`
 	PasswordHash string    `json:"-"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+type Claims struct {
+	UserID int `json:"user_id"`
+	jwt.RegisteredClaims
 }
 
 type Expression struct {

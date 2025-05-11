@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"strconv"
@@ -22,7 +21,6 @@ var (
 	tasks             = make(map[string]*models.Task)
 	taskQueue         = make([]string, 0)
 	mu                sync.Mutex
-	templates         = template.Must(template.ParseGlob("templates/*.html"))
 	ErrDivisionByZero = errors.New("division by zero")
 )
 
