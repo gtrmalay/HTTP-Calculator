@@ -61,15 +61,24 @@ cd .\HTTP-Calculator\
 go mod tidy
 ```
 ### Запуск
+1. **Настройте БД**
 
-1. **Запустите оркестратор:**
+В пакете cmd/calculator/main.go необходимо настроить строку подключения (написать название бд и пароль):
+```
+connStr = "user=postgres dbname=calculator_db password=your_db_pass sslmode=disable"
+```
+
+connStr = "user=postgres dbname=calculator_db password=Ebds777staX sslmode=disable"
+
+2. **Запустите оркестратор:**
 ```sh
 go run ./cmd/calculator/main.go
 ```
-2. **Запустите агента:**
+3. **Запустите агента:**
 ```sh
 go run ./cmd/agent/main.go
 ```
+
 **Запуск визульной части:**
 После запуска агента и оркестратора откройте в браузере URL сервиса: 
 ```
