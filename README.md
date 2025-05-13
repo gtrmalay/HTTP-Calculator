@@ -6,6 +6,7 @@
 ```
 https://t.me/akkoyash
 ```
+![itachi](https://github.com/user-attachments/assets/570e2a24-5179-4e43-b202-4278853068c7)
 
 
 ## О проекте
