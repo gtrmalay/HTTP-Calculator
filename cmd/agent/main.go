@@ -37,7 +37,7 @@ func registerUser(username, password, baseURL string) error {
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("Failed to register user: %s", resp.Status)
-		// Если пользователь уже существует, это может быть нормальным, поэтому не возвращаем ошибку
+		
 		return nil
 	}
 
@@ -46,17 +46,17 @@ func registerUser(username, password, baseURL string) error {
 }
 
 func main() {
-	// Параметры агента
+	
 	username := "agent"
 	password := "agent_pass"
 	baseURL := "http://localhost:8080"
 
-	// Регистрируем пользователя
+	
 	if err := registerUser(username, password, baseURL); err != nil {
 		log.Fatalf("Failed to register user: %v", err)
 	}
 
-	// Создаём и запускаем агента
+	
 	ag, err := agent.NewAgent(username, password, baseURL)
 	if err != nil {
 		log.Fatalf("Failed to initialize agent: %v", err)
@@ -67,6 +67,6 @@ func main() {
 	}
 	defer ag.Stop()
 
-	// Ждём сигнала завершения (например, Ctrl+C)
+	
 	<-make(chan struct{})
 }
