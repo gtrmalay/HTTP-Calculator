@@ -78,14 +78,12 @@ func RequeueTaskHandler(s *storage.PostgresStorage) http.HandlerFunc {
 				return
 			}
 
-			// Обновляем задачу
 			if err := s.UpdateTaskResult(r.Context(), req.ID, *req.Result); err != nil {
 				log.Printf("Failed to update task %s: %v", req.ID, err)
 				respondWithError(w, http.StatusInternalServerError, "Failed to update task")
 				return
 			}
 
-			// Проверяем, завершены ли все задачи выражения
 			tasks, err := s.GetTasksByExpressionID(r.Context(), task.ExpressionID)
 			if err != nil {
 				log.Printf("Failed to get tasks for expression %d: %v", task.ExpressionID, err)
@@ -135,7 +133,6 @@ func RequeueTaskHandler(s *storage.PostgresStorage) http.HandlerFunc {
 				}
 			}
 
-			// Активируем зависимые задачи
 			dependentTasks, err := s.GetDependentTasks(r.Context(), req.ID)
 			if err != nil {
 				log.Printf("Failed to get dependent tasks for %s: %v", req.ID, err)

@@ -18,7 +18,6 @@ func TestGenerateAndParseToken(t *testing.T) {
 	assert.NoError(t, err, "ParseToken should not return an error")
 	assert.Equal(t, userID, claims.UserID, "Parsed user ID should match")
 
-	// Проверяем срок действия токена
 	assert.True(t, claims.ExpiresAt.After(time.Now()), "Token expiration should be in the future")
 	assert.True(t, claims.ExpiresAt.Before(time.Now().Add(25*time.Hour)), "Token expiration should be within 24 hours")
 }

@@ -54,7 +54,6 @@ func setupTestDB(t *testing.T) (*storage.PostgresStorage, func()) {
 	store, err := storage.NewPostgresStorage(connStr)
 	assert.NoError(t, err, "Failed to initialize storage")
 
-	// Функция очистки
 	cleanup := func() {
 		_, _ = db.Exec(`DROP TABLE IF EXISTS task_queue, tasks, expressions, users CASCADE;`)
 		store.Close()

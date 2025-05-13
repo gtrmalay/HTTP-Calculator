@@ -12,13 +12,13 @@ import (
 )
 
 func StartServer(connStr string) *http.Server {
-	// Инициализация хранилища
+
 	store, err := storage.NewPostgresStorage(connStr)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Настройка маршрутов
+	// маршруты
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/register", handlers.RegisterHandler(store))
 	mux.HandleFunc("/api/v1/login", handlers.LoginHandler(store))
@@ -29,11 +29,10 @@ func StartServer(connStr string) *http.Server {
 	mux.Handle("/internal/task/", middleware.AuthMiddleware(http.HandlerFunc(handlers.GetTaskByIDHandler(store))))
 	mux.Handle("/internal/task/requeue", middleware.AuthMiddleware(http.HandlerFunc(handlers.RequeueTaskHandler(store))))
 
-	// Статические файлы
+	// статика
 	fs := http.FileServer(http.Dir("styles"))
 	mux.Handle("/styles/", http.StripPrefix("/styles/", fs))
 
-	// Запуск сервера
 	server := &http.Server{
 		Addr:    ":8080",
 		Handler: mux,
@@ -46,7 +45,6 @@ func StartServer(connStr string) *http.Server {
 		}
 	}()
 
-	// Инициализация очереди задач из базы
 	if err := initTaskQueue(store); err != nil {
 		log.Fatalf("Failed to init task queue: %v", err)
 	}

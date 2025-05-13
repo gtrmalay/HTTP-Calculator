@@ -35,7 +35,7 @@ type Task struct {
 	Operation     string   `json:"operation"`
 	OperationTime int      `json:"operation_time"`
 	Status        string   `json:"status"`
-	Result        *float64 `json:"result"` // Изменяем на указатель для поддержки NULL
+	Result        *float64 `json:"result"`
 	DependsOn     []string `json:"depends_on"`
 }
 
