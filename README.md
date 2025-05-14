@@ -69,6 +69,10 @@ go mod tidy
 ```
 connStr = "user=postgres dbname=calculator_db password=your_db_pass sslmode=disable"
 ```
+Также, обязательно нужно применить миграции:
+```
+migrate -path ./migrations -database "postgres://postgres:your_db_pass@localhost:5432/your_db_name?sslmode=disable" up
+```
 
 connStr = "user=postgres dbname=calculator_db password=Ebds777staX sslmode=disable"
 
