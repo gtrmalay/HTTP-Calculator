@@ -37,7 +37,7 @@ func registerUser(username, password, baseURL string) error {
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("Failed to register user: %s", resp.Status)
-		
+
 		return nil
 	}
 
@@ -46,17 +46,15 @@ func registerUser(username, password, baseURL string) error {
 }
 
 func main() {
-	
+
 	username := "agent"
 	password := "agent_pass"
 	baseURL := "http://localhost:8080"
 
-	
 	if err := registerUser(username, password, baseURL); err != nil {
 		log.Fatalf("Failed to register user: %v", err)
 	}
 
-	
 	ag, err := agent.NewAgent(username, password, baseURL)
 	if err != nil {
 		log.Fatalf("Failed to initialize agent: %v", err)
@@ -67,6 +65,5 @@ func main() {
 	}
 	defer ag.Stop()
 
-	
 	<-make(chan struct{})
 }

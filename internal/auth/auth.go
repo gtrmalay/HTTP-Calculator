@@ -31,7 +31,6 @@ func GenerateToken(userID int) (string, error) {
 }
 
 func ParseToken(tokenString string) (*Claims, error) {
-	// Удаляем префикс "Bearer ", если он есть
 	if strings.HasPrefix(tokenString, "Bearer ") {
 		tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 	}

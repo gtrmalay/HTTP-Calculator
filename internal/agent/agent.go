@@ -36,10 +36,9 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
-// NewAgent создаёт новый экземпляр агента с заданным базовым URL
 func NewAgent(username, password, baseURL string) (*Agent, error) {
 	if baseURL == "" {
-		baseURL = "http://localhost:8080" // Значение по умолчанию
+		baseURL = "http://localhost:8080"
 	}
 	return &Agent{
 		username: username,
@@ -48,7 +47,6 @@ func NewAgent(username, password, baseURL string) (*Agent, error) {
 	}, nil
 }
 
-// authenticate выполняет аутентификацию и получает токен
 func (a *Agent) authenticate() error {
 	client := &http.Client{}
 	data := struct {
@@ -90,7 +88,6 @@ func (a *Agent) authenticate() error {
 	return nil
 }
 
-// getTask получает следующую задачу из оркестратора
 func (a *Agent) getTask() (*Task, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", a.baseURL+"/internal/task", nil)
@@ -124,7 +121,6 @@ func (a *Agent) getTask() (*Task, error) {
 	return &task, nil
 }
 
-// processTask обрабатывает полученную задачу
 func (a *Agent) processTask(task *Task) error {
 	log.Printf("Processing task %s: %s %s %s", task.ID, task.Arg1, task.Operation, task.Arg2)
 
@@ -161,7 +157,6 @@ func (a *Agent) processTask(task *Task) error {
 	return nil
 }
 
-// getArgValue определяет значение аргумента (число или результат другой задачи)
 func (a *Agent) getArgValue(arg string) float64 {
 	uuidRegex := regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 	if uuidRegex.MatchString(arg) {
@@ -216,7 +211,6 @@ func (a *Agent) getArgValue(arg string) float64 {
 	return -1
 }
 
-// submitResult отправляет результат задачи обратно в оркестратор
 func (a *Agent) submitResult(taskID string, result float64) error {
 	data := struct {
 		ID     string  `json:"id"`
@@ -257,7 +251,6 @@ func (a *Agent) submitResult(taskID string, result float64) error {
 	return nil
 }
 
-// Start запускает цикл обработки задач
 func (a *Agent) Start() error {
 	if err := a.authenticate(); err != nil {
 		return fmt.Errorf("authentication failed: %w", err)
@@ -304,12 +297,10 @@ func (a *Agent) Start() error {
 	return nil
 }
 
-// Stop останавливает агента (в данном случае просто логика завершения)
 func (a *Agent) Stop() {
 	log.Println("Agent stopping")
 }
 
-// isUnauthorized проверяет, является ли ошибка связанной с 401 Unauthorized
 func isUnauthorized(err error) bool {
 	if err == nil {
 		return false
