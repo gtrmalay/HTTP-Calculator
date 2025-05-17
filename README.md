@@ -51,28 +51,30 @@ README.md
 
 ### Установка
 
-
-1. Скачайте и установите 
-```sh
-https://www.postgresql.org/download/
-```
-
-2. Клонируйте репозиторий
+1. Клонируйте репозиторий
 ```sh
 git clone https://github.com/gtrmalay/HTTP-Calculator.git
 ```
-3. Перейдите в директорию проекта
+2. Перейдите в директорию проекта
 ```sh
 cd .\HTTP-Calculator\
 ```
-4. Установите зависимости
+3. Установите зависимости
 ```sh
 go mod tidy
 ```
 ### Запуск
-1. Настройте БД
 
-В пакете cmd/calculator/main.go необходимо настроить строку подключения (написать название бд и пароль):
+1. Скачайте и установите PostgreSQL
+```sh
+https://www.postgresql.org/download/
+```
+
+2. Создайте БД в PostgreSQL
+
+3. Настройте в коде строку подключения БД
+
+В пакете cmd/calculator/main.go необходимо настроить строку подключения (написать имя пользователя(роли), название ранее созданной бд и пароль пользователя):
 ```
 connStr = "user=postgres dbname=calculator_db password=your_db_pass sslmode=disable"
 ```
