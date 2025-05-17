@@ -50,15 +50,22 @@ README.md
 ## Установка и запуск проекта
 
 ### Установка
-1. Клонируйте репозиторий
+
+
+1. Скачайте и установите 
+```sh
+https://www.postgresql.org/download/
+```
+
+2. Клонируйте репозиторий
 ```sh
 git clone https://github.com/gtrmalay/HTTP-Calculator.git
 ```
-2. Перейдите в директорию проекта
+3. Перейдите в директорию проекта
 ```sh
 cd .\HTTP-Calculator\
 ```
-3. Установите зависимости
+4. Установите зависимости
 ```sh
 go mod tidy
 ```
@@ -69,12 +76,6 @@ go mod tidy
 ```
 connStr = "user=postgres dbname=calculator_db password=your_db_pass sslmode=disable"
 ```
-Также, обязательно нужно применить миграции:
-```
-migrate -path ./migrations -database "postgres://postgres:your_db_pass@localhost:5432/your_db_name?sslmode=disable" up
-```
-
-connStr = "user=postgres dbname=calculator_db password=Ebds777staX sslmode=disable"
 
 2. Запустите оркестратор:
 ```sh
