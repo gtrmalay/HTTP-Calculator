@@ -1,23 +1,32 @@
 package main
 
 import (
+	"database/sql"
+	"log"
 	"os"
 
 	"github.com/gtrmalay/LMS.Sprint1.HTTP-Calculator/internal/orchestrator"
+	_ "github.com/lib/pq"
+
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 func main() {
 	connStr := os.Getenv("DB_CONN_STR")
 	if connStr == "" {
-		connStr = "user=postgres dbname=cc password=Ebds777staX sslmode=disable"
+		connStr = "user=postgres dbname=test password=Ebds777staX sslmode=disable"
 	}
+
+	RunMigrations(connStr)
 
 	server := orchestrator.StartServer(connStr)
 	<-make(chan struct{})
 	orchestrator.ShutdownServer(server)
 }
 
-/* func RunMigrations(connStr string) {
+func RunMigrations(connStr string) {
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("❌ Failed to connect to DB:", err)
@@ -39,4 +48,4 @@ func main() {
 	}
 
 	log.Println("✅ Migrations applied successfully.")
-} */
+}
